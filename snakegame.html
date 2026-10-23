@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Snake Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        
+        body {
+            background-color: #050a06;
+            color: #00ff41;
+            font-family: 'Share Tech Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            background-color: #000000;
+            border-radius: 5px;
+            display: block;
+        }
+
+        #ui {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff41;
+        }
+
+        #start-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 255, 65, 0.1);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-family: 'Share Tech Mono', monospace;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+            transition: all 0.3s;
+        }
+
+        #start-btn:hover {
+            background-color: #00ff41;
+            color: #000;
+            box-shadow: 0 0 20px #00ff41;
+        }
+
+        /* Tombol Panah untuk Mouse/Sentuh */
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(2, 60px);
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .ctrl-btn {
+            background-color: rgba(0, 255, 65, 0.1);
+            color: #00ff41;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+            transition: 0.1s;
+        }
+
+        .ctrl-btn:active {
+            background-color: #00ff41;
+            color: #000;
+        }
+
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui">
+            <span>SCORE: <span id="score">0</span></span>
+            <span>HIGH: <span id="high-score">0</span></span>
+        </div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <button id="start-btn">KLIK UNTUK MULAI</button>
+    </div>
+
+    <!-- Tombol Kontrol Layar -->
+    <div id="controls">
+        <button class="ctrl-btn" id="btn-up" onclick="changeDir('up')">▲</button>
+        <button class="ctrl-btn" id="btn-left" onclick="changeDir('left')">◀</button>
+        <button class="ctrl-btn" id="btn-down" onclick="changeDir('down')">▼</button>
+        <button class="ctrl-btn" id="btn-right" onclick="changeDir('right')">▶</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('high-score');
+        const startBtn = document.getElementById('start-btn');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [];
+        let food = {};
+        let dx = gridSize;
+        let dy = 0;
+        let score = 0;
+        let highScore = 0;
+        let gameInterval;
+        let changingDirection = false;
+        let gameRunning = false;
+
+        function initGame() {
+            snake = [
+                { x: 100, y: 200 },
+                { x: 80, y: 200 },
+                { x: 60, y: 200 }
+            ];
+            dx = gridSize;
+            dy = 0;
+            score = 0;
+            scoreElement.innerText = score;
+            generateFood();
+            gameRunning = true;
+            startBtn.style.display = 'none';
+            changingDirection = false;
+            
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 150); 
+        }
+
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * tileCount) * gridSize,
+                y: Math.floor(Math.random() * tileCount) * gridSize
+            };
+            for (let part of snake) {
+                if (part.x === food.x && part.y === food.y) {
+                    return generateFood();
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Makanan
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ffff';
+            ctx.fillRect(food.x, food.y, gridSize - 2, gridSize - 2);
+
+            // Ular
+            ctx.fillStyle = '#00ff41';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ff41';
+            for (let i = 0; i < snake.length; i++) {
+                if (i === 0) {
+                    ctx.fillStyle = '#a0ffa0';
+                } else {
+                    ctx.fillStyle = '#00ff41';
+                }
+                ctx.fillRect(snake[i].x, snake[i].y, gridSize - 2, gridSize - 2);
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreElement.innerText = score;
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElement.innerText = highScore;
+                }
+                generateFood();
+            } else {
+                snake.pop();
+            }
+            changingDirection = false;
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+                gameOver();
+            }
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            moveSnake();
+            checkCollision();
+            if (gameRunning) draw();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            clearInterval(gameInterval);
+            startBtn.innerText = "GAME OVER - COBA LAGI";
+            startBtn.style.display = 'block';
+            
+            canvas.style.transform = "translate(5px, 5px)";
+            setTimeout(() => canvas.style.transform = "translate(-5px, -5px)", 50);
+            setTimeout(() => canvas.style.transform = "translate(0, 0)", 100);
+        }
+
+        // Fungsi untuk mengubah arah (dipakai oleh Keyboard DAN Tombol Layar)
+        function changeDir(dir) {
+            if (!gameRunning || changingDirection) return;
+            
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (dir === 'left' && !goingRight) {
+                dx = -gridSize; dy = 0; changingDirection = true;
+            }
+            if (dir === 'up' && !goingDown) {
+                dx = 0; dy = -gridSize; changingDirection = true;
+            }
+            if (dir === 'right' && !goingLeft) {
+                dx = gridSize; dy = 0; changingDirection = true;
+            }
+            if (dir === 'down' && !goingUp) {
+                dx = 0; dy = gridSize; changingDirection = true;
+            }
+        }
+
+        // Kontrol Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') changeDir('left');
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') changeDir('up');
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') changeDir('right');
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') changeDir('down');
+        });
+
+        startBtn.addEventListener('click', initGame);
+    </script>
+</body>
+</html>
